@@ -1,18 +1,10 @@
 # claude-code-auto-fixer
 
-Automatically fixes code shortcuts in Claude AI generated responses. This tool helps clean up code snippets where Claude uses shorthand notations like `// ... rest remains same` or `# ... rest of code unchanged`.
+🔧 A tool that automatically fixes code shortcuts in Claude AI generated responses. It replaces patterns like `// ... rest remains same` or `# ... rest of code unchanged` with the appropriate code blocks.
 
-## Features
+## 🚀 Installation
 
-- 🔍 Detects and fixes Claude's common code shortcuts
-- 🔄 Processes multiple file types and languages
-- 💾 Creates automatic backups before making changes
-- 📁 Works with single files or entire directories
-- 🎨 Maintains code formatting and indentation
-- 📊 Provides detailed fixing statistics
-
-## Installation
-
+### NPM Package (Recommended)
 ```bash
 # Global installation
 npm install -g claude-code-auto-fixer
@@ -21,121 +13,198 @@ npm install -g claude-code-auto-fixer
 npm install --save-dev claude-code-auto-fixer
 ```
 
-## Usage
-
-### Command Line
-
+### From Source
 ```bash
-# Fix current directory
-node claude-code-auto-fixer.js
-
-# Fix specific file
-node claude-code-auto-fixer.js path/to/file.js
-
-# Fix specific directory
-node claude-code-auto-fixer.js path/to/directory
+# Clone the repository
+git clone https://github.com/your-username/claude-code-auto-fixer.git
+cd claude-code-auto-fixer
+npm install
 ```
 
-### NPM Script
+## 💻 Usage
 
-Add to your package.json:
-```json
+### Using NPM Package
+
+```bash
+# If installed globally
+claude-fix ./your-directory
+
+# Using npx
+npx claude-code-auto-fixer ./your-directory
+
+# If installed locally, add to your package.json scripts:
 {
   "scripts": {
-    "fix-claude": "claude-code-auto-fixer"
+    "fix-claude": "claude-fix"
   }
 }
-```
 
-Then run:
-```bash
+# Then run:
 npm run fix-claude
 ```
 
-## Supported Languages
+### Using in Your Code
 
+```javascript
+// CommonJS
+const ClaudeCodeAutoFixer = require('claude-code-auto-fixer');
+
+// ES Modules
+import ClaudeCodeAutoFixer from 'claude-code-auto-fixer';
+
+// Use the fixer
+const fixer = new ClaudeCodeAutoFixer();
+await fixer.fix('./src');
+```
+
+### Command Line Options
+```bash
+claude-fix [directory]     # Fix directory (default: current)
+claude-fix file.js        # Fix single file
+```
+
+## 🌟 Features
+
+- 🤖 Specifically designed for Claude AI code responses
+- 🔄 Preserves code structure and indentation
+- 💾 Creates automatic timestamped backups
+- 📂 Process single files or entire directories
+- 🎨 Multiple language support
+- 📦 Automatic npm script integration
+
+## 🔍 Examples
+
+### Before:
+```javascript
+function calculateTotal() {
+    const subtotal = getSubtotal();
+    // ... rest remains same
+}
+```
+
+### After:
+```javascript
+function calculateTotal() {
+    const subtotal = getSubtotal();
+    const tax = subtotal * 0.2;
+    return subtotal + tax;
+}
+```
+
+## 🗃️ Supported File Types
+
+### Programming Languages
 - JavaScript/TypeScript (.js, .jsx, .ts, .tsx)
 - Python (.py, .pyx, .pyi)
 - Java/Kotlin (.java, .kt)
 - C/C++ (.c, .cpp, .h, .hpp)
-- C# (.cs, .csx)
-- Web (.html, .css, .scss, .vue, .svelte)
+- C# (.cs)
 - Ruby (.rb)
 - PHP (.php)
 - Go (.go)
 - Rust (.rs)
 - Swift (.swift)
 
-## How It Works
+### Web Technologies
+- HTML (.html)
+- CSS/SCSS (.css, .scss)
+- Vue (.vue)
+- Svelte (.svelte)
 
-The tool:
-1. Scans files for Claude's common shortcut patterns
-2. Creates timestamped backups of files before modification
-3. Identifies and maintains proper code indentation
-4. Replaces shortcuts with appropriate code blocks
-5. Provides detailed console output of changes
+## 📋 Requirements
 
-## Example
+- Node.js (version 12 or higher)
+- npm or yarn
 
-Before:
-```javascript
-function example() {
-    const x = 1;
-    // ... rest remains same
+## 🔒 Safety Features
+
+- Creates timestamped backups before modifying files
+- Skips common build and dependency directories
+- Preserves original file structure
+- Maintains code indentation
+
+## ⚙️ Integration Examples
+
+### With VS Code Tasks
+```json
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Fix Claude Code",
+      "type": "shell",
+      "command": "claude-fix",
+      "args": ["${workspaceFolder}"]
+    }
+  ]
 }
 ```
 
-After:
-```javascript
-function example() {
-    const x = 1;
-    const result = calculate(x);
-    return result;
+### With Git Hooks (using husky)
+```json
+{
+  "husky": {
+    "hooks": {
+      "pre-commit": "claude-fix ./src"
+    }
+  }
 }
 ```
 
-## Configuration
-
-The tool automatically ignores common directories:
-- node_modules
-- dist
-- build
-- .git
-- And more...
-
-## Output
-
-The tool provides detailed console output:
-```bash
-🔍 Claude Code Auto Fixer Starting...
-📁 Target: ./src
-✅ Fixed 3 shortcuts in example.js
-✅ Fixed 1 shortcut in utils.py
-📊 Summary:
-├─ Files Processed: 10
-├─ Files Fixed: 2
-└─ Total Fixes: 4
-✨ Fixed successfully!
+### With GitHub Actions
+```yaml
+name: Fix Claude Code
+on: [push]
+jobs:
+  fix-code:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+      - run: npm install -g claude-code-auto-fixer
+      - run: claude-fix ./src
 ```
 
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## License
+## 📝 License
 
-MIT License - feel free to use this in your own projects!
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## Author
+## 🐛 Troubleshooting
 
-[Your Name/Username]
+### Common Issues
 
-## Acknowledgments
+1. **Global Command Not Found**
+   ```bash
+   npm install -g claude-code-auto-fixer
+   ```
 
-- Inspired by Claude AI's responses
-- Built for the developer community
-- Uses minimal dependencies for maximum compatibility
+2. **Permission Issues**
+   ```bash
+   sudo npm install -g claude-code-auto-fixer
+   ```
+
+3. **Package Not Found**
+   ```bash
+   # Check your npm configuration
+   npm config list
+   # Make sure you're using the correct registry
+   npm config set registry https://registry.npmjs.org/
+   ```
+
+## 📞 Support
+
+If you have any questions or run into issues, please:
+
+1. Check the [issues page](https://github.com/your-username/claude-code-auto-fixer/issues)
+2. Open a new issue if needed
 
 ---
 
-Made with ❤️ by the community
+Made with 🔧 by [Your Name]
+
+[GitHub Repository](https://github.com/your-username/claude-code-auto-fixer) | 
+[NPM Package](https://www.npmjs.com/package/claude-code-auto-fixer)
