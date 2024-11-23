@@ -1,0 +1,227 @@
+const fs = require('fs');
+const path = require('path');
+const chalk = require('chalk');
+
+class ClaudeCodeAutoFixer {
+    constructor() {
+        // Common patterns that Claude uses for shortcuts
+        this.patterns = {
+            comments: [
+                // Generic shortcuts
+                /\/\/\s*\.{3}\s*(?:rest|remaining).*(?:same|code|unchanged)/i,
+                /\/\/\s*\.{3}\s*rest.*(?:of the|of).*code/i,
+                /\/\/\s*Previous.*(?:implementation|code).*continues/i,
+                /\/\/\s*Rest.*(?:of|of the).*(?:class|implementation|method)/i,
+                /\/\/\s*Remaining.*(?:methods|code|implementation)/i,
+
+                // Language-specific patterns
+                // Python
+                /#\s*\.{3}\s*rest.*(?:remains?|stays?).*(?:same|unchanged)/i,
+                /#\s*Previous.*(?:implementation|code).*continues/i,
+
+                // JavaScript/TypeScript
+                /\/\/\s*\.{3}\s*(?:implementation|functionality|methods)/i,
+                /\/\*\s*\.{3}\s*rest.*(?:remains?|stays?).*(?:same|unchanged)\s*\*\//i,
+
+                // Java/C#
+                /\/\/\s*\.{3}\s*remaining.*(?:methods|implementation)/i,
+                /\/\*\s*\.{3}\s*rest.*(?:implementation|functionality)\s*\*\//i,
+
+                // HTML/XML
+                /<!--\s*\.{3}\s*rest.*(?:remains?|stays?).*(?:same|unchanged)\s*-->/i,
+
+                // Multi-line comments
+                /\/\*\s*\.{3}\s*(?:rest|remaining).*\s*\*\//i
+            ],
+            extensions: [
+                // JavaScript/TypeScript
+                '.js', '.jsx', '.ts', '.tsx', '.mjs', '.cjs',
+                // Python
+                '.py', '.pyx', '.pyi',
+                // Java/Kotlin
+                '.java', '.kt',
+                // C-family
+                '.c', '.cpp', '.h', '.hpp',
+                // C#
+                '.cs', '.csx',
+                // Web
+                '.html', '.css', '.scss', '.vue', '.svelte',
+                // Ruby
+                '.rb',
+                // PHP
+                '.php',
+                // Go
+                '.go',
+                // Rust
+                '.rs',
+                // Swift
+                '.swift'
+            ],
+            ignoreDirs: [
+                'node_modules',
+                'dist',
+                'build',
+                'vendor',
+                '.git',
+                '__pycache__',
+                'venv',
+                '.next',
+                '.nuxt',
+                'out',
+                'target',
+                'bin',
+                'obj'
+            ]
+        };
+
+        this.stats = {
+            filesProcessed: 0,
+            filesFixed: 0,
+            totalFixes: 0
+        };
+    }
+
+    async updatePackageJson(targetPath) {
+        const packageJsonPath = path.join(targetPath, 'package.json');
+        
+        try {
+            if (fs.existsSync(packageJsonPath)) {
+                console.log(chalk.blue('📦 Found package.json - Adding npm script...'));
+                
+                let packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
+                
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const backupPath = `${packageJsonPath}.${timestamp}.bak`;
+                fs.writeFileSync(backupPath, JSON.stringify(packageJson, null, 2));
+                
+                packageJson.scripts = packageJson.scripts || {};
+                
+                if (!packageJson.scripts['fix-claude']) {
+                    packageJson.scripts['fix-claude'] = 'claude-code-auto-fixer';
+                    
+                    fs.writeFileSync(
+                        packageJsonPath, 
+                        JSON.stringify(packageJson, null, 2)
+                    );
+                    
+                    console.log(chalk.green('✅ Added npm script: fix-claude'));
+                    console.log(chalk.gray('   You can now run: npm run fix-claude'));
+                } else {
+                    console.log(chalk.yellow('ℹ️ fix-claude script already exists in package.json'));
+                }
+            }
+        } catch (error) {
+            console.error(chalk.yellow('⚠️ Warning: Could not update package.json:'), error.message);
+        }
+    }
+
+    async fix(targetPath = './') {
+        console.log(chalk.blue('🔍 Claude Code Auto Fixer Starting...'));
+        console.log(chalk.gray(`📁 Target: ${targetPath}`));
+
+        try {
+            if (!fs.existsSync(targetPath)) {
+                throw new Error('Path does not exist: ' + targetPath);
+            }
+
+            await this.updatePackageJson(targetPath);
+
+            const stats = fs.statSync(targetPath);
+            if (stats.isFile()) {
+                await this.fixFile(targetPath);
+            } else if (stats.isDirectory()) {
+                await this.processDirectory(targetPath);
+            }
+
+            this.printSummary();
+        } catch (error) {
+            console.error(chalk.red('❌ Error:'), error.message);
+            process.exit(1);
+        }
+    }
+
+    async processDirectory(dirPath, depth = 0) {
+        try {
+            const items = fs.readdirSync(dirPath);
+
+            for (const item of items) {
+                const fullPath = path.join(dirPath, item);
+                
+                if (fs.statSync(fullPath).isDirectory()) {
+                    if (this.patterns.ignoreDirs.includes(item)) {
+                        continue;
+                    }
+                    await this.processDirectory(fullPath, depth + 1);
+                } else if (this.patterns.extensions.includes(path.extname(fullPath))) {
+                    await this.fixFile(fullPath);
+                }
+            }
+        } catch (error) {
+            console.error(chalk.red(`❌ Error processing directory ${dirPath}:`), error.message);
+        }
+    }
+
+    async fixFile(filePath) {
+        try {
+            this.stats.filesProcessed++;
+            const content = fs.readFileSync(filePath, 'utf8');
+            let fixCount = 0;
+            let lastCodeBlock = '';
+            let lastIndentation = '';
+
+            const lines = content.split('\n');
+            const fixedLines = lines.map((line, index) => {
+                const hasShortcut = this.patterns.comments.some(pattern => pattern.test(line));
+
+                if (hasShortcut) {
+                    fixCount++;
+                    if (lastCodeBlock) {
+                        return lastIndentation + lastCodeBlock.trim();
+                    }
+                    return line;
+                }
+
+                if (!this.isComment(line) && line.trim()) {
+                    lastCodeBlock = line;
+                    lastIndentation = line.match(/^\s*/)[0];
+                }
+
+                return line;
+            });
+
+            if (fixCount > 0) {
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+                const backupPath = `${filePath}.${timestamp}.bak`;
+                fs.writeFileSync(backupPath, content);
+
+                fs.writeFileSync(filePath, fixedLines.join('\n'));
+
+                this.stats.filesFixed++;
+                this.stats.totalFixes += fixCount;
+
+                console.log(chalk.green(`✅ Fixed ${fixCount} shortcut${fixCount > 1 ? 's' : ''} in ${path.basename(filePath)}`));
+            }
+        } catch (error) {
+            console.error(chalk.red(`❌ Error processing ${filePath}:`), error.message);
+        }
+    }
+
+    isComment(line) {
+        return /^\s*(\/\/|#|\/\*|\*|<!--)/.test(line);
+    }
+
+    printSummary() {
+        console.log('\n' + chalk.blue('📊 Summary:'));
+        console.log(chalk.gray('├─ Files Processed: ') + chalk.white(this.stats.filesProcessed));
+        console.log(chalk.gray('├─ Files Fixed: ') + chalk.green(this.stats.filesFixed));
+        console.log(chalk.gray('└─ Total Fixes: ') + chalk.green(this.stats.totalFixes));
+
+        if (this.stats.totalFixes > 0) {
+            console.log(chalk.green('\n✨ Fixed successfully!'));
+        } else {
+            console.log(chalk.blue('\n✨ No fixes needed!'));
+        }
+    }
+}
+
+module.exports = ClaudeCodeAutoFixer;
